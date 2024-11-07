@@ -1,18 +1,8 @@
-const express = require("express");
-const bookRouter = require("./routes/book.routes");
-const app = express();
-const PORT = 3000;
+const config = require("./config/config");
+const app = require("./app");
 
-app.use(express.json());
-
-app.use(bookRouter);
-
-app.get("/", (req, res) => {
-  console.log("home route");
-  res.send("hello");
-});
+const PORT = config.server.port;
 
 app.listen(PORT, () => {
   console.log(`Server is running in http://localhost:${PORT}`);
 });
-module.exports = app;
