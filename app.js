@@ -3,7 +3,8 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 require("./config/db");
 
-const bookRouter = require("./routes/book.routes");
+const categoryRouter = require("./routes/api/category.routes");
+const bookRouter = require("./routes/api/book.routes");
 const userRouter = require("./routes/user.routes");
 
 const app = express();
@@ -15,7 +16,8 @@ app.use(express.json());
 app.use(cors());
 
 //? routes * * * * * * * * * * * * *
-app.use("/books", bookRouter);
+app.use("/api/categories", categoryRouter);
+app.use("/api/books", bookRouter);
 app.use(userRouter);
 
 //  default route * * * * * * * * * * * *

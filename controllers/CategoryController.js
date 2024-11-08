@@ -1,6 +1,4 @@
-const Book = require("../models/BookModels");
-const CategoryModels = require("../models/CategoryModels");
-
+const Category = require("../models/CategoryModels");
 // * * * index methods * * * * * * * * * * * * * * * *
 exports.index = async (req, res) => {
   try {
@@ -13,26 +11,19 @@ exports.index = async (req, res) => {
 
     // Total count for pagination
     const total = search
-      ? await Book.countDocuments({
+      ? await Category.countDocuments({
           $or: [{ title: { $regex: regex } }, { slug: { $regex: regex } }],
         })
-      : await Book.countDocuments();
+      : await Category.countDocuments();
 
     // Search functionality with pagination
     data = search
-      ? await Book.find({
+      ? await Category.find({
           $or: [{ title: { $regex: regex } }, { slug: { $regex: regex } }],
         })
           .skip(skip)
           .limit(limit)
-      : await Book.find()
-          .populate({
-            path: "category",
-            model: CategoryModels,
-            select: "title slug",
-          })
-          .skip(skip)
-          .limit(limit);
+      : await Category.find().skip(skip).limit(limit);
 
     res.status(200).json({
       status: 200,
@@ -55,56 +46,28 @@ exports.index = async (req, res) => {
 // * * * store method ********************************
 exports.store = async (req, res) => {
   try {
-    const {
-      title,
-      slug,
-      total_page,
-      cover_photo,
-      author_name,
-      publication_name,
-      description,
-      category,
-    } = req.body;
+    const { title, slug } = req.body;
 
-    if (
-      !title ||
-      !slug ||
-      !total_page ||
-      !cover_photo ||
-      !author_name ||
-      !publication_name ||
-      !description ||
-      !category
-    ) {
+    if (!title || !slug) {
       return res
         .status(400)
         .json({ message: "Missing required fields.", status: 400 });
     }
 
     // check the slug is unique
-    const slugIsUnique = await Book.findOne({ slug: slug });
+    const slugIsUnique = await Category.findOne({ slug: slug });
     if (slugIsUnique) {
       return res
         .status(400)
         .json({ message: "Slug is already in use.", status: 400 });
     }
 
-    const newBook = {
-      title,
-      slug,
-      total_page,
-      cover_photo,
-      author_name,
-      publication_name,
-      description,
-      category,
-    };
-
-    const savedBook = await Book.create(newBook);
+    const newCategory = { title, slug };
+    const savedCategory = await Category.create(newCategory);
 
     res.status(201).json({
-      data: savedBook,
-      message: "New book created successfully!!",
+      data: savedCategory,
+      message: "New category created successfully!!",
       status: 201,
     });
   } catch (error) {
@@ -121,15 +84,15 @@ exports.store = async (req, res) => {
 exports.show = async (req, res) => {
   try {
     const { slug } = req.params;
-    const bookItem = await Book.findOne({ slug: slug });
-    if (!bookItem) {
+    const categoryItem = await Category.findOne({ slug: slug });
+    if (!categoryItem) {
       return res
         .status(404)
-        .json({ data: null, message: "Book not found.", status: 404 });
+        .json({ data: null, message: "Category not found.", status: 404 });
     }
     return res.json({
-      data: bookItem,
-      message: "Book fetched successfully!!",
+      data: categoryItem,
+      message: "Category fetched successfully!!",
       status: 200,
     });
   } catch (err) {
@@ -143,37 +106,28 @@ exports.show = async (req, res) => {
 // * * * update method ********************************
 exports.update = async (req, res) => {
   try {
-    // Step 1: Retrieve the book's _id from request parameters and new data from the request body
+    // Step 1: Retrieve the category's _id from request parameters and new data from the request body
     const { _id } = req.params;
-    const { title, slug } = req.body;
+    let { title, slug } = req.body;
 
     // Step 2: Ensure required fields are provided
-    if (
-      !title ||
-      !slug ||
-      !total_page ||
-      !cover_photo ||
-      !author_name ||
-      !publication_name ||
-      !description ||
-      !category
-    ) {
+    if (!title || !slug) {
       return res
         .status(400)
         .json({ message: "Title and slug are required.", status: 400 });
     }
 
-    // Step 3: Find the book by _id
-    const bookItem = await Book.findById(_id);
-    if (!bookItem) {
+    // Step 3: Find the category by _id
+    const categoryItem = await Category.findById(_id);
+    if (!categoryItem) {
       return res
         .status(404)
-        .json({ data: null, message: "Book not found.", status: 404 });
+        .json({ data: null, message: "Category not found.", status: 404 });
     }
 
     // Step 4: If the slug has changed, check if the new slug is unique
-    if (slug !== bookItem.slug) {
-      const slugIsUnique = await Book.findOne({ slug });
+    if (slug !== categoryItem.slug) {
+      const slugIsUnique = await Category.findOne({ slug });
       if (slugIsUnique) {
         return res
           .status(400)
@@ -181,23 +135,17 @@ exports.update = async (req, res) => {
       }
     }
 
-    // Step 5: Update the book's title and slug
-    bookItem.title = title;
-    bookItem.slug = slug;
-    bookItem.total_page = total_page;
-    bookItem.cover_photo = cover_photo;
-    bookItem.author_name = author_name;
-    bookItem.publication_name = publication_name;
-    bookItem.description = description;
-    bookItem.category = category;
+    // Step 5: Update the category's title and slug
+    categoryItem.title = title;
+    categoryItem.slug = slug;
 
     // Step 6: Save changes to the database
-    await bookItem.save();
+    await categoryItem.save();
 
     // Step 7: Return a success response
     res.status(200).json({
-      data: bookItem,
-      message: "Book updated successfully!",
+      data: categoryItem,
+      message: "Category updated successfully!",
       status: 200,
     });
   } catch (err) {
@@ -213,18 +161,18 @@ exports.update = async (req, res) => {
 exports.destroy = async (req, res) => {
   try {
     const { slug } = req.params;
-    const bookItem = await Book.findOne({ slug: slug });
-    if (!bookItem) {
+    const categoryItem = await Category.findOne({ slug: slug });
+    if (!categoryItem) {
       return res
         .status(404)
-        .json({ data: null, message: "Book not found.", status: 404 });
+        .json({ data: null, message: "Category not found.", status: 404 });
     }
 
-    await Book.deleteOne({ slug: slug });
+    await Category.deleteOne({ slug: slug });
 
     res
       .status(200)
-      .json({ message: "Book deleted successfully.", status: 200 });
+      .json({ message: "Category deleted successfully.", status: 200 });
   } catch (err) {
     console.log(err.message);
     res
