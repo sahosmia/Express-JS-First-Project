@@ -2,6 +2,13 @@ const Book = require("../models/BookModels");
 const Joi = require("joi");
 
 const CategoryModels = require("../models/CategoryModels");
+const {
+  sendErrorResponse,
+  simpleSuccessResponse,
+  errorResponse,
+  successResponse,
+  paginateSuccessResponse,
+} = require("../utils/responseHandler");
 
 // * * * index methods * * * * * * * * * * * * * * * *
 exports.index = async (req, res) => {
@@ -36,21 +43,15 @@ exports.index = async (req, res) => {
           .skip(skip)
           .limit(limit);
 
-    res.status(200).json({
-      status: 200,
-      message: "Successful!",
-      limit: limit,
-      page: page,
-      total: total,
-      data: data,
-    });
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).json({
-      message: "Something went wrong.",
-      error: error.message,
-      status: 500,
-    });
+    return paginateSuccessResponse(
+      res,
+      data,
+      page,
+      total,
+      limit
+    );
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
   }
 };
 
@@ -68,11 +69,11 @@ exports.store = async (req, res) => {
       category,
     } = req.body;
 
-    const schema = Joi.object({
-      title: Joi.string(),
-    });
+    // const schema = Joi.object({
+    //   title: Joi.string(),
+    // });
 
-    const { error, value } = schema.validate({ a: "a string" });
+    // const { error, value } = schema.validate(req.body);
 
     if (
       !slug ||
@@ -83,17 +84,13 @@ exports.store = async (req, res) => {
       !description ||
       !category
     ) {
-      return res
-        .status(400)
-        .json({ message: "Missing required fields.", status: 400 });
+      return errorResponse(res, "Missing required fields");
     }
 
     // check the slug is unique
     const slugIsUnique = await Book.findOne({ slug: slug });
     if (slugIsUnique) {
-      return res
-        .status(400)
-        .json({ message: "Slug is already in use.", status: 400 });
+      return errorResponse(res, "Slug is already in use.");
     }
 
     const newBook = {
@@ -109,18 +106,14 @@ exports.store = async (req, res) => {
 
     const savedBook = await Book.create(newBook);
 
-    res.status(201).json({
-      data: savedBook,
-      message: "New book created successfully!!",
-      status: 201,
-    });
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).json({
-      message: "Something went wrong.",
-      error: error.message,
-      status: 201,
-    });
+    return successResponse(
+      res,
+      savedBook,
+      "New book created successfully",
+      201
+    );
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
   }
 };
 
@@ -131,20 +124,12 @@ exports.show = async (req, res) => {
     const { slug } = req.params;
     const bookItem = await Book.findOne({ slug: slug });
     if (!bookItem) {
-      return res
-        .status(404)
-        .json({ data: null, message: "Book not found.", status: 404 });
+      return errorResponse(res, "Book not found.", 404);
     }
-    return res.json({
-      data: bookItem,
-      message: "Book fetched successfully!!",
-      status: 200,
-    });
+
+    return successResponse(res, bookItem, "Book fetched successfully!!");
   } catch (err) {
-    console.log(err.message);
-    res
-      .status(500)
-      .json({ message: "Somthing error", status: 500, error: err.message });
+    return errorResponse(res, err.message, 500);
   }
 };
 
@@ -174,18 +159,14 @@ exports.update = async (req, res) => {
     // Step 3: Find the book by _id
     const bookItem = await Book.findById(_id);
     if (!bookItem) {
-      return res
-        .status(404)
-        .json({ data: null, message: "Book not found.", status: 404 });
+      return errorResponse(res, "Book not found.", 404);
     }
 
     // Step 4: If the slug has changed, check if the new slug is unique
     if (slug !== bookItem.slug) {
       const slugIsUnique = await Book.findOne({ slug });
       if (slugIsUnique) {
-        return res
-          .status(400)
-          .json({ message: "Slug is already in use.", status: 400 });
+        return errorResponse(res, "Slug is already in use");
       }
     }
 
@@ -199,20 +180,10 @@ exports.update = async (req, res) => {
     bookItem.description = description;
     bookItem.category = category;
 
-    // Step 6: Save changes to the database
     await bookItem.save();
-
-    // Step 7: Return a success response
-    res.status(200).json({
-      data: bookItem,
-      message: "Book updated successfully!",
-      status: 200,
-    });
+    return successResponse(res, bookItem, "Book updated successfully!!");
   } catch (err) {
-    console.log(err.message);
-    res
-      .status(500)
-      .json({ message: "Somthing error", status: 500, error: err.message });
+    return errorResponse(res, err.message, 500);
   }
 };
 
@@ -223,20 +194,12 @@ exports.destroy = async (req, res) => {
     const { slug } = req.params;
     const bookItem = await Book.findOne({ slug: slug });
     if (!bookItem) {
-      return res
-        .status(404)
-        .json({ data: null, message: "Book not found.", status: 404 });
+      return errorResponse(res, "Book not found", 404);
     }
 
     await Book.deleteOne({ slug: slug });
-
-    res
-      .status(200)
-      .json({ message: "Book deleted successfully.", status: 200 });
+    return simpleSuccessResponse(res, "Book deleted successfully");
   } catch (err) {
-    console.log(err.message);
-    res
-      .status(500)
-      .json({ message: "Somthing error", status: 500, error: err.message });
+    return errorResponse(res, err.message, 500);
   }
 };

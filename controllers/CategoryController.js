@@ -26,21 +26,15 @@ exports.index = async (req, res) => {
           .limit(limit)
       : await Category.find().skip(skip).limit(limit);
 
-    res.status(200).json({
-      status: 200,
-      message: "Successful!",
-      limit: limit,
-      page: page,
-      total: total,
-      data: data,
-    });
-  } catch (error) {
-    console.error(error.message);
-    res.status(500).json({
-      message: "Something went wrong.",
-      error: error.message,
-      status: 500,
-    });
+    return paginateSuccessResponse(
+      res,
+      data,
+      page,
+      total,
+      limit
+    );
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
   }
 };
 
@@ -52,18 +46,14 @@ exports.store = async (req, res) => {
     const newCategory = { title, slug };
     const savedCategory = await Category.create(newCategory);
 
-    res.status(201).json({
-      data: savedCategory,
-      message: "New category created successfully!!",
-      status: 201,
-    });
+    return successResponse(
+      res,
+      savedCategory,
+      "New Category created successfully",
+      201
+    );
   } catch (error) {
-    console.error(error.message);
-    res.status(500).json({
-      message: "Something went wrong.",
-      error: error.message,
-      status: 500,
-    });
+    return errorResponse(res, err.message, 500);
   }
 };
 
@@ -73,20 +63,15 @@ exports.show = async (req, res) => {
     const { slug } = req.params;
     const categoryItem = await Category.findOne({ slug: slug });
     if (!categoryItem) {
-      return res
-        .status(404)
-        .json({ data: null, message: "Category not found.", status: 404 });
+      return errorResponse(res, "Category not found.", 404);
     }
-    return res.json({
-      data: categoryItem,
-      message: "Category fetched successfully!!",
-      status: 200,
-    });
+    return successResponse(
+      res,
+      categoryItem,
+      "Category fetched successfully!!"
+    );
   } catch (err) {
-    console.log(err.message);
-    res
-      .status(500)
-      .json({ message: "Somthing error", status: 500, error: err.message });
+    return errorResponse(res, err.message, 500);
   }
 };
 
@@ -102,16 +87,13 @@ exports.update = async (req, res) => {
     categoryItem.slug = slug;
     await categoryItem.save();
 
-    res.status(200).json({
-      data: categoryItem,
-      message: "Category updated successfully!",
-      status: 200,
-    });
+    return successResponse(
+      res,
+      categoryItem,
+      "Category updated successfully!!"
+    );
   } catch (err) {
-    console.log(err.message);
-    res
-      .status(500)
-      .json({ message: "Somthing error", status: 500, error: err.message });
+    return errorResponse(res, err.message, 500);
   }
 };
 
@@ -121,20 +103,11 @@ exports.destroy = async (req, res) => {
     const { slug } = req.params;
     const categoryItem = await Category.findOne({ slug: slug });
     if (!categoryItem) {
-      return res
-        .status(404)
-        .json({ data: null, message: "Category not found.", status: 404 });
+      return errorResponse(res, "Category not found", 404);
     }
-
     await Category.deleteOne({ slug: slug });
-
-    res
-      .status(200)
-      .json({ message: "Category deleted successfully.", status: 200 });
+    return simpleSuccessResponse(res, "Category deleted successfully");
   } catch (err) {
-    console.log(err.message);
-    res
-      .status(500)
-      .json({ message: "Somthing error", status: 500, error: err.message });
+    return errorResponse(res, err.message, 500);
   }
 };
