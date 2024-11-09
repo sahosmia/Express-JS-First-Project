@@ -1,4 +1,6 @@
 const Book = require("../models/BookModels");
+const Joi = require("joi");
+
 const CategoryModels = require("../models/CategoryModels");
 
 // * * * index methods * * * * * * * * * * * * * * * *
@@ -66,8 +68,13 @@ exports.store = async (req, res) => {
       category,
     } = req.body;
 
+    const schema = Joi.object({
+      title: Joi.string(),
+    });
+
+    const { error, value } = schema.validate({ a: "a string" });
+
     if (
-      !title ||
       !slug ||
       !total_page ||
       !cover_photo ||
@@ -118,6 +125,7 @@ exports.store = async (req, res) => {
 };
 
 // * * * show method ********************************
+
 exports.show = async (req, res) => {
   try {
     const { slug } = req.params;

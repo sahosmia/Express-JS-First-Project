@@ -15,6 +15,7 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(cors());
 
+
 //? routes * * * * * * * * * * * * *
 app.use("/api/categories", categoryRouter);
 app.use("/api/books", bookRouter);
