@@ -6,12 +6,13 @@ const {
   deleteUser,
   showUser,
 } = require("../controllers/UserController");
+const joiValidation = require("../middlewares/joiValidation");
 const router = express.Router();
 
-router.get("/users", indexUser);
-router.post("/users", createUser);
-router.get("/users/:id", showUser);
-router.put("/users/:id", updateUser);
-router.delete("/users/:id", deleteUser);
+router.get("/", indexUser);
+router.post("/", createUser);
+router.get("/:id", showUser);
+router.put("/:id", updateUser);
+router.delete("/:id", deleteUser);
 
 module.exports = router;

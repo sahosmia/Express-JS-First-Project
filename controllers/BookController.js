@@ -1,9 +1,7 @@
 const Book = require("../models/BookModels");
-const Joi = require("joi");
 
 const CategoryModels = require("../models/CategoryModels");
 const {
-  sendErrorResponse,
   simpleSuccessResponse,
   errorResponse,
   successResponse,
@@ -43,13 +41,7 @@ exports.index = async (req, res) => {
           .skip(skip)
           .limit(limit);
 
-    return paginateSuccessResponse(
-      res,
-      data,
-      page,
-      total,
-      limit
-    );
+    return paginateSuccessResponse(res, data, page, total, limit);
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }
@@ -68,30 +60,6 @@ exports.store = async (req, res) => {
       description,
       category,
     } = req.body;
-
-    // const schema = Joi.object({
-    //   title: Joi.string(),
-    // });
-
-    // const { error, value } = schema.validate(req.body);
-
-    if (
-      !slug ||
-      !total_page ||
-      !cover_photo ||
-      !author_name ||
-      !publication_name ||
-      !description ||
-      !category
-    ) {
-      return errorResponse(res, "Missing required fields");
-    }
-
-    // check the slug is unique
-    const slugIsUnique = await Book.findOne({ slug: slug });
-    if (slugIsUnique) {
-      return errorResponse(res, "Slug is already in use.");
-    }
 
     const newBook = {
       title,
@@ -136,49 +104,28 @@ exports.show = async (req, res) => {
 // * * * update method ********************************
 exports.update = async (req, res) => {
   try {
-    // Step 1: Retrieve the book's _id from request parameters and new data from the request body
     const { _id } = req.params;
-    const { title, slug } = req.body;
-
-    // Step 2: Ensure required fields are provided
-    if (
-      !title ||
-      !slug ||
-      !total_page ||
-      !cover_photo ||
-      !author_name ||
-      !publication_name ||
-      !description ||
-      !category
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Title and slug are required.", status: 400 });
-    }
-
-    // Step 3: Find the book by _id
     const bookItem = await Book.findById(_id);
+
     if (!bookItem) {
-      return errorResponse(res, "Book not found.", 404);
+      return errorResponse(res, "Book not found", 404);
     }
 
-    // Step 4: If the slug has changed, check if the new slug is unique
-    if (slug !== bookItem.slug) {
-      const slugIsUnique = await Book.findOne({ slug });
+    if (req.body.slug !== bookItem.slug) {
+      const slugIsUnique = await Book.findOne({ slug: req.body.slug });
       if (slugIsUnique) {
         return errorResponse(res, "Slug is already in use");
       }
     }
 
-    // Step 5: Update the book's title and slug
-    bookItem.title = title;
-    bookItem.slug = slug;
-    bookItem.total_page = total_page;
-    bookItem.cover_photo = cover_photo;
-    bookItem.author_name = author_name;
-    bookItem.publication_name = publication_name;
-    bookItem.description = description;
-    bookItem.category = category;
+    bookItem.title = req.body.title;
+    bookItem.slug = req.body.slug;
+    bookItem.total_page = req.body.total_page;
+    bookItem.cover_photo = req.body.cover_photo;
+    bookItem.author_name = req.body.author_name;
+    bookItem.publication_name = req.body.publication_name;
+    bookItem.description = req.body.description;
+    bookItem.category = req.body.category;
 
     await bookItem.save();
     return successResponse(res, bookItem, "Book updated successfully!!");

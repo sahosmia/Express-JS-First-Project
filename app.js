@@ -5,7 +5,13 @@ require("./config/db");
 
 const categoryRouter = require("./routes/api/category.routes");
 const bookRouter = require("./routes/api/book.routes");
+const authRouter = require("./routes/api/auth.routes");
 const userRouter = require("./routes/user.routes");
+const {
+  notFoundHandler,
+  errorHandler,
+} = require("./controllers/CommonErrorController");
+const { zeroPoint } = require("./controllers/HomeController");
 
 const app = express();
 
@@ -15,27 +21,18 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(cors());
 
+// set view engine
+app.set("view engine", "ejs");
 
 //? routes * * * * * * * * * * * * *
+app.get("/", zeroPoint);
 app.use("/api/categories", categoryRouter);
 app.use("/api/books", bookRouter);
-app.use(userRouter);
+app.use("users", userRouter);
+app.use(authRouter);
 
-//  default route * * * * * * * * * * * *
-app.get("/", (req, res) => {
-  console.log("home route");
-  res.send("hello");
-});
-
-//  Not Found Page 404
-app.use((req, res, next) => {
-  res.status(404).json({ message: "Page Not Found", status: 404 });
-});
-
-// somthing error
-app.use((err, req, res, next) => {
-  console.error(err.message);
-  res.status(500).json({ message: "Something went wrong", status: 500 });
-});
+//  Not Found Page 404 and somthing error
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;
