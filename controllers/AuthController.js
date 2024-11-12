@@ -6,6 +6,8 @@ const config = require("./../config/config");
 const jwt = require("jsonwebtoken");
 const jwt_secret = config.secret.jwt_secret;
 
+const District = require("../models/District");
+
 exports.register = async (req, res) => {
   try {
     const { name, email, password, location } = req.body;
@@ -18,9 +20,17 @@ exports.register = async (req, res) => {
       password: passwordHash,
       location,
     };
-
     const saveUser = await User.create(newUser);
-    return successResponse(res, saveUser, "success", 200);
+    const user = await User.findOne({ email });
+    const locationItem = await District.findOne({ _id: user.location });
+
+    const token = jwt.sign(
+      { name: user.name, email: user.email, location: user.location },
+      jwt_secret,
+      { expiresIn: "1h" }
+    );
+
+    return successResponse(res, { user, token, locationItem }, "success", 200);
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }
@@ -43,8 +53,14 @@ exports.login = async (req, res) => {
         jwt_secret,
         { expiresIn: "1h" }
       );
+      const locationItem = await District.findOne({ _id: user.location });
 
-      return successResponse(res, { token, user }, "success", 200);
+      return successResponse(
+        res,
+        { token, user, locationItem },
+        "success",
+        200
+      );
     }
   } catch (error) {
     return errorResponse(res, error.message, 500);

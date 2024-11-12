@@ -12,6 +12,10 @@ const {
   errorHandler,
 } = require("./controllers/CommonErrorController");
 const { zeroPoint } = require("./controllers/HomeController");
+const {
+  getAllDistrict,
+  getSingleDistrict,
+} = require("./controllers/DistrictController");
 
 const app = express();
 
@@ -29,7 +33,9 @@ app.get("/", zeroPoint);
 app.use("/api/categories", categoryRouter);
 app.use("/api/books", bookRouter);
 app.use("users", userRouter);
-app.use(authRouter);
+app.use("/api", authRouter);
+app.get("/api/districts", getAllDistrict);
+app.get("/api/districts/:_id", getSingleDistrict);
 
 //  Not Found Page 404 and somthing error
 app.use(notFoundHandler);
