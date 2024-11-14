@@ -32,7 +32,7 @@ app.set("view engine", "ejs");
 app.get("/", zeroPoint);
 app.use("/api/categories", categoryRouter);
 app.use("/api/books", bookRouter);
-app.use("users", userRouter);
+app.use("/api/users", userRouter);
 app.use("/api", authRouter);
 app.get("/api/districts", getAllDistrict);
 app.get("/api/districts/:_id", getSingleDistrict);

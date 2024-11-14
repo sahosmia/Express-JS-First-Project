@@ -1,4 +1,11 @@
 const { users } = require("../models/BookModels");
+const District = require("../models/District");
+const User = require("../models/User");
+const { errorResponse, successResponse } = require("../utils/responseHandler");
+const config = require("./../config/config");
+
+const jwt = require("jsonwebtoken");
+const jwt_secret = config.secret.jwt_secret;
 
 // index methods
 exports.indexUser = (req, res) => {
@@ -35,26 +42,38 @@ exports.showUser = (req, res) => {
 };
 
 //update user
-exports.updateUser = (req, res) => {
-  const { id } = req.params;
-  const { name, email, password } = req.body;
-  const user = users.find((user) => user.id === id);
-  if (!user) {
-    return res.status(404).json({ message: "User not found." });
+exports.updateUser = async (req, res) => {
+  try {
+    const { _id } = req.params;
+    const { name, email, username, location } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      _id,
+      { name, email, username, location },
+      { new: true }
+    );
+
+    const locationItem = await District.findOne({ _id: updatedUser.location });
+    const token = jwt.sign(
+      {
+        name: updatedUser.name,
+        email: updatedUser.email,
+        location: updatedUser.location,
+      },
+      jwt_secret,
+      { expiresIn: "1h" }
+    );
+    console.log(updatedUser);
+
+    return successResponse(
+      res,
+      { updatedUser, token, locationItem },
+      "success",
+      200
+    );
+  } catch (err) {
+    return errorResponse(res, err.message, 500);
   }
-  if (
-    email &&
-    users.some(
-      (existingUser) => existingUser.email === email && existingUser.id !== id
-    )
-  ) {
-    return res.status(400).json({ message: "Email already exists." });
-  }
-  user.name = name || user.name;
-  user.email = email || user.email;
-  user.password = password || user.password;
-  res.json(user);
-  console.log("User updated:", user);
 };
 
 //delete user
