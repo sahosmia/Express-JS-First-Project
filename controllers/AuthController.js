@@ -11,7 +11,12 @@ const District = require("../models/District");
 exports.register = async (req, res) => {
   try {
     const { name, email, password, location } = req.body;
-    const username = name + "-" + Date.now() + "-" + location;
+    const username =
+      name.replace(/\s+/g, "") +
+      "-" +
+      Date.now() +
+      "-" +
+      location.replace(/\s+/g, "");
     const passwordHash = await bcrypt.hash(password, 10);
     const newUser = {
       name,

@@ -8,6 +8,8 @@ const userUpdateValidation = [
   body("username")
     .notEmpty()
     .withMessage("Username is required")
+    .matches(/^\S+$/)
+    .withMessage("Username cannot contain spaces")
     .custom(async (username, { req }) => {
       const { _id } = req.params;
 

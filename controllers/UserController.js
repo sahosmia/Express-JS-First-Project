@@ -67,7 +67,7 @@ exports.updateUser = async (req, res) => {
 
     return successResponse(
       res,
-      { updatedUser, token, locationItem },
+      { user: updatedUser, token, locationItem },
       "success",
       200
     );
