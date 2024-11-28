@@ -1,12 +1,18 @@
+// Dependencies
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
-require("./config/db");
+const path = require("path");
+const helmet = require("helmet");
+require("dotenv").config();
+require("./config/db"); // Database connection
 
+// Routers
 const categoryRouter = require("./routes/api/category.routes");
 const bookRouter = require("./routes/api/book.routes");
 const authRouter = require("./routes/api/auth.routes");
 const userRouter = require("./routes/user.routes");
+
+// Controllers
 const {
   notFoundHandler,
   errorHandler,
@@ -17,19 +23,19 @@ const {
   getSingleDistrict,
 } = require("./controllers/DistrictController");
 
+// Initialize Express app
 const app = express();
 
-//  middleware to parse request body
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-app.use(express.json());
-app.use(cors());
+// Middleware
+app.use(helmet()); // Adds security headers
+app.use(express.json()); // Parses JSON body
+app.use(express.urlencoded({ extended: true })); // Parses URL-encoded data
+app.use(cors()); // Enables Cross-Origin Resource Sharing
 
-// set view engine
-app.set("view engine", "ejs");
+// Static files
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-//? routes * * * * * * * * * * * * *
-app.get("/", zeroPoint);
+// Routes
 app.use("/api/categories", categoryRouter);
 app.use("/api/books", bookRouter);
 app.use("/api/users", userRouter);
@@ -37,8 +43,14 @@ app.use("/api", authRouter);
 app.get("/api/districts", getAllDistrict);
 app.get("/api/districts/:_id", getSingleDistrict);
 
-//  Not Found Page 404 and somthing error
-app.use(notFoundHandler);
-app.use(errorHandler);
+// Health check
+app.get("/health", (req, res) =>
+  res.status(200).json({ status: "OK", message: "API is running!" })
+);
 
+// Error handling
+app.use(notFoundHandler); // Handles 404 errors
+app.use(errorHandler); // Global error handler
+
+// Export app for server.js
 module.exports = app;

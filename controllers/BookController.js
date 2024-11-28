@@ -1,4 +1,8 @@
 const Book = require("../models/BookModels");
+const Districtrt = require("../models/District");
+const User = require("../models/User");
+const path = require("path");
+const fs = require("fs");
 
 const CategoryModels = require("../models/CategoryModels");
 const {
@@ -7,41 +11,88 @@ const {
   successResponse,
   paginateSuccessResponse,
 } = require("../utils/responseHandler");
+const District = require("../models/District");
+const { default: mongoose } = require("mongoose");
+const { default: slugify } = require("slugify");
+const bookUpload = require("../middlewares/bookMulter");
 
 // * * * index methods * * * * * * * * * * * * * * * *
 exports.index = async (req, res) => {
   try {
-    let data;
-    const search = req.query.search;
-    const regex = new RegExp(search, "gi");
-    const limit = req.query.limit || 2;
-    const page = req.query.page || 1;
-    const skip = (page - 1) * limit;
+    const {
+      search,
+      limit = 20,
+      page = 1,
+      category = "",
+      location = "",
+    } = req.query;
 
-    // Total count for pagination
-    const total = search
-      ? await Book.countDocuments({
-          $or: [{ title: { $regex: regex } }, { slug: { $regex: regex } }],
-        })
-      : await Book.countDocuments();
+    const limitNum = Math.min(parseInt(limit, 10), 100);
+    const pageNum = Math.max(parseInt(page, 10), 1);
+    const skip = (pageNum - 1) * limitNum;
 
-    // Search functionality with pagination
-    data = search
-      ? await Book.find({
-          $or: [{ title: { $regex: regex } }, { slug: { $regex: regex } }],
-        })
-          .skip(skip)
-          .limit(limit)
-      : await Book.find()
-          .populate({
-            path: "category",
-            model: CategoryModels,
-            select: "title slug",
-          })
-          .skip(skip)
-          .limit(limit);
+    const query = {};
 
-    return paginateSuccessResponse(res, data, page, total, limit);
+    if (location) {
+      if (!mongoose.isValidObjectId(location)) {
+        return errorResponse(res, "Invalid location ID format", 400);
+      }
+
+      const locationExists = await District.exists({ _id: location });
+      if (!locationExists) {
+        return errorResponse(res, "Invalid location provided", 404);
+      }
+
+      query.location = location;
+    }
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: new RegExp(search, "gi") } },
+        { slug: { $regex: new RegExp(search, "gi") } },
+        { author_name: { $regex: new RegExp(search, "gi") } },
+      ];
+    }
+
+    if (category) {
+      if (!mongoose.isValidObjectId(category)) {
+        return errorResponse(res, "Invalid category ID format", 400);
+      }
+
+      const categoryExists = await CategoryModels.exists({ _id: category });
+      if (!categoryExists) {
+        return errorResponse(res, "Invalid category provided", 404);
+      }
+
+      query.category = category;
+    }
+
+    const total = await Book.countDocuments(query);
+    const data = await Book.find(query)
+      .populate({
+        path: "category",
+        model: CategoryModels,
+        select: "title slug",
+      })
+      .populate({
+        path: "user",
+        model: User,
+        select: "name username email",
+      })
+      .populate({
+        path: "location",
+        model: Districtrt,
+        select: "title slug",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
+
+    if (!data.length) {
+      return successResponse(res, "No books found", []);
+    }
+
+    return paginateSuccessResponse(res, data, pageNum, total, limitNum);
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }
@@ -54,22 +105,37 @@ exports.store = async (req, res) => {
       title,
       slug,
       total_page,
-      cover_photo,
       author_name,
       publication_name,
       description,
       category,
     } = req.body;
+    // Ensure the file is present
+    const coverPhoto = req.file.filename;
+
+    if (!coverPhoto) {
+      return res.status(400).json({ message: "Cover photo is required" });
+    }
+
+    const uniqueSlug = slugify(slug, {
+      lower: true,
+      strict: true,
+      remove: /[*+~.()'"!:@&]/g,
+      replacement: "-",
+      trim: true,
+    });
 
     const newBook = {
       title,
-      slug,
-      total_page,
-      cover_photo,
+      slug: uniqueSlug,
+      total_page: Number(total_page),
+      cover_photo: coverPhoto,
       author_name,
       publication_name,
       description,
       category,
+      user: req.user.id,
+      location: req.user.location,
     };
 
     const savedBook = await Book.create(newBook);
@@ -90,7 +156,25 @@ exports.store = async (req, res) => {
 exports.show = async (req, res) => {
   try {
     const { slug } = req.params;
-    const bookItem = await Book.findOne({ slug: slug });
+    const bookItem = await Book.findOne({ slug: slug })
+      .populate({
+        path: "category",
+        model: CategoryModels,
+        select: "title slug",
+      })
+      .populate({
+        path: "user",
+        model: User,
+        populate: {
+          path: "location", // Populate user's location field
+          model: District, // Ensure this matches your district model name
+        },
+      })
+      .populate({
+        path: "location",
+        model: Districtrt,
+        select: "title slug",
+      });
     if (!bookItem) {
       return errorResponse(res, "Book not found.", 404);
     }
@@ -103,32 +187,61 @@ exports.show = async (req, res) => {
 
 // * * * update method ********************************
 exports.update = async (req, res) => {
+  const { _id } = req.params; // Extract book ID from params
+  const {
+    title,
+    slug,
+    total_page,
+    author_name,
+    publication_name,
+    description,
+    category,
+  } = req.body;
+
   try {
-    const { _id } = req.params;
-    const bookItem = await Book.findById(_id);
+    const uniqueSlug = slugify(slug, {
+      lower: true,
+      strict: true,
+      remove: /[*+~.()'"!:@&]/g,
+      replacement: "-",
+      trim: true,
+    });
 
-    if (!bookItem) {
-      return errorResponse(res, "Book not found", 404);
-    }
+    const newUpdateAbleBook = {
+      title,
+      slug: uniqueSlug,
+      total_page: Number(total_page),
+      author_name,
+      publication_name,
+      description,
+      category,
+    };
 
-    if (req.body.slug !== bookItem.slug) {
-      const slugIsUnique = await Book.findOne({ slug: req.body.slug });
-      if (slugIsUnique) {
-        return errorResponse(res, "Slug is already in use");
+    if (req.file) {
+      const oldBook = await Book.findById(_id);
+
+      // Delete the old cover photo if it exists
+      if (oldBook && oldBook.cover_photo) {
+        const oldPath = path.resolve(
+          __dirname,
+          "../uploads/books",
+          oldBook.cover_photo
+        );
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+        }
       }
+
+      // Update with the new file
+      newUpdateAbleBook.cover_photo = req.file.filename;
     }
 
-    bookItem.title = req.body.title;
-    bookItem.slug = req.body.slug;
-    bookItem.total_page = req.body.total_page;
-    bookItem.cover_photo = req.body.cover_photo;
-    bookItem.author_name = req.body.author_name;
-    bookItem.publication_name = req.body.publication_name;
-    bookItem.description = req.body.description;
-    bookItem.category = req.body.category;
+    const updatedBook = await Book.findByIdAndUpdate(_id, newUpdateAbleBook, {
+      new: true,
+    });
+    return successResponse(res, updatedBook, "Book Updated successfully", 201);
 
-    await bookItem.save();
-    return successResponse(res, bookItem, "Book updated successfully!!");
+    // return successResponse(res, bookItem, "Book updated successfully!!");
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }
@@ -139,14 +252,34 @@ exports.update = async (req, res) => {
 exports.destroy = async (req, res) => {
   try {
     const { slug } = req.params;
-    const bookItem = await Book.findOne({ slug: slug });
-    if (!bookItem) {
+
+    // Find the book by slug
+    const book = await Book.findOne({ slug });
+    if (!book) {
       return errorResponse(res, "Book not found", 404);
     }
 
-    await Book.deleteOne({ slug: slug });
-    return simpleSuccessResponse(res, "Book deleted successfully");
-  } catch (err) {
-    return errorResponse(res, err.message, 500);
+    // If the book has a cover image, delete the file
+    if (book.coverImage) {
+      const imagePath = path.resolve(
+        __dirname,
+        "../uploads/books",
+        book.coverImage
+      );
+      fs.unlink(imagePath, (err) => {
+        if (err) {
+          console.error("Error deleting file:", err.message);
+        }
+      });
+    }
+
+    // Delete the book from the database
+    await Book.deleteOne({ slug });
+
+    // Send a success response
+    return successResponse(res, null, "Book deleted successfully");
+  } catch (error) {
+    console.error("Error deleting book:", error.message);
+    return errorResponse(res, "An error occurred while deleting the book", 500);
   }
 };

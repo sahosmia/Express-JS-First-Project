@@ -1,5 +1,9 @@
 const Category = require("../models/CategoryModels");
-const { errorResponse, successResponse, paginateSuccessResponse } = require("../utils/responseHandler");
+const {
+  errorResponse,
+  successResponse,
+  paginateSuccessResponse,
+} = require("../utils/responseHandler");
 
 // * * * index methods * * * * * * * *
 exports.index = async (req, res) => {
@@ -7,7 +11,7 @@ exports.index = async (req, res) => {
     let data;
     const search = req.query.search;
     const regex = new RegExp(search, "gi");
-    const limit = req.query.limit || 2;
+    const limit = req.query.limit || 5;
     const page = req.query.page || 1;
     const skip = (page - 1) * limit;
 
@@ -27,13 +31,7 @@ exports.index = async (req, res) => {
           .limit(limit)
       : await Category.find().skip(skip).limit(limit);
 
-    return paginateSuccessResponse(
-      res,
-      data,
-      page,
-      total,
-      limit
-    );
+    return paginateSuccessResponse(res, data, page, total, limit);
   } catch (err) {
     return errorResponse(res, err.message, 500);
   }

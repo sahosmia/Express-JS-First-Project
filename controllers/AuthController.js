@@ -1,78 +1,112 @@
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const District = require("../models/District");
 const { successResponse, errorResponse } = require("../utils/responseHandler");
 const config = require("./../config/config");
 
-const jwt = require("jsonwebtoken");
 const jwt_secret = config.secret.jwt_secret;
 
-const District = require("../models/District");
-
+// User Registration
 exports.register = async (req, res) => {
   try {
     const { name, email, password, location } = req.body;
-    const username =
-      name.replace(/\s+/g, "") +
-      "-" +
-      Date.now() +
-      "-" +
-      location.replace(/\s+/g, "");
+
+    // Check if email already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return errorResponse(res, "Email is already registered", 400);
+    }
+
+    // Generate unique username
+    const username = `${name
+      .replace(/\s+/g, "")
+      .toLowerCase()}-${Date.now()}-${location
+      .replace(/\s+/g, "")
+      .toLowerCase()}`;
+
+    // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
-    const newUser = {
+
+    // Create new user
+    const newUser = await User.create({
       name,
-      username: username,
+      username,
       email,
       password: passwordHash,
       location,
-    };
-    const saveUser = await User.create(newUser);
-    const user = await User.findOne({ email });
-    const locationItem = await District.findOne({ _id: user.location });
+    });
 
+    // Get location details
+    const locationItem = await District.findById(newUser.location);
+
+    // Generate JWT token
     const token = jwt.sign(
-      { name: user.name, email: user.email, location: user.location },
+      { _id: newUser._id, username: newUser.username },
       jwt_secret,
       { expiresIn: "1h" }
     );
 
-    return successResponse(res, { user, token, locationItem }, "success", 200);
-  } catch (err) {
-    return errorResponse(res, err.message, 500);
+    // Success response
+    return successResponse(
+      res,
+      { user: newUser, token, locationItem },
+      "Registration successful",
+      201
+    );
+  } catch (error) {
+    console.error("Registration error:", error);
+    return errorResponse(res, "Internal server error", 500);
   }
 };
 
+// User Login
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
-      return errorResponse(res, "Email or password is wrong", 401);
-    } else {
-      const checkPassword = await bcrypt.compare(password, user.password);
-      if (!checkPassword) {
-        return errorResponse(res, "Email or password is wrong", 401);
-      }
-
-      const token = jwt.sign(
-        { name: user.name, email: user.email, location: user.location },
-        jwt_secret,
-        { expiresIn: "1h" }
-      );
-      const locationItem = await District.findOne({ _id: user.location });
-
-      return successResponse(
-        res,
-        { token, user, locationItem },
-        "success",
-        200
-      );
+      return errorResponse(res, "Invalid email or password", 401);
     }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return errorResponse(res, "Invalid email or password", 401);
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { _id: user._id, username: user.username },
+      jwt_secret,
+      { expiresIn: "1h" }
+    );
+
+    // Fetch location details
+    const locationItem = await District.findById(user.location);
+
+    // Success response
+    return successResponse(
+      res,
+      { token, user, locationItem },
+      "Login successful",
+      200
+    );
   } catch (error) {
-    return errorResponse(res, error.message, 500);
+    console.error("Login error:", error);
+    return errorResponse(res, "Internal server error", 500);
   }
 };
 
+// User Logout (Placeholder Example)
 exports.logout = async (req, res) => {
-  const user = await User.find({});
-  return successResponse(res, user, "success", 200);
+  try {
+    // Add proper logic for logout if using sessions or token blacklisting
+    return successResponse(res, {}, "Logout successful", 200);
+  } catch (error) {
+    console.error("Logout error:", error);
+    return errorResponse(res, "Internal server error", 500);
+  }
 };

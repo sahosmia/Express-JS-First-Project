@@ -1,44 +1,79 @@
-const { users } = require("../models/BookModels");
 const District = require("../models/District");
 const User = require("../models/User");
 const { errorResponse, successResponse } = require("../utils/responseHandler");
 const config = require("./../config/config");
+const path = require("path");
+const fs = require("fs");
 
 const jwt = require("jsonwebtoken");
+const BookModels = require("../models/BookModels");
+const CategoryModels = require("../models/CategoryModels");
 const jwt_secret = config.secret.jwt_secret;
 
 // index methods
-exports.indexUser = (req, res) => {
-  res.json(users);
-};
-
-//create a new user
-exports.createUser = (req, res) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) {
-    return res.status(400).json({ message: "All fields are required." });
+exports.indexUser = async (req, res) => {
+  try {
+    const users = await User.find();
+    return successResponse(res, users, "Users retrieved successfully", 200);
+  } catch (error) {
+    console.error("Error fetching users:", error.message);
+    return errorResponse(res, "Internal server error", 500);
   }
-
-  if (users.some((user) => user.email === email)) {
-    return res.status(400).json({ message: "Email already exists." });
-  }
-
-  const newUser = { id: Date.now().toString(), name, email, password };
-  users.push(newUser);
-  res.status(201).json(newUser);
-  console.log("New user added:", newUser);
 };
 
 //update user
-exports.showUser = (req, res) => {
-  const { id } = req.params;
-  const user = users.find((user) => user.id === id);
-  if (!user) {
-    return res.status(404).json({ message: "User not found." });
-  }
+exports.showUser = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-  res.json(user);
-  console.log("User show:", user);
+    const user = await User.findById(id);
+    if (!user) {
+      return errorResponse(res, "User not found", 404);
+    }
+
+    const books = await BookModels.find({ user: id })
+      .populate("category", "title slug") // Include category title and slug
+      .populate("user"); // Include selected user details
+
+    return successResponse(
+      res,
+      { user, books },
+      "User and their books retrieved successfully",
+      200
+    );
+  } catch (error) {
+    console.error("Error fetching user or books:", error.message);
+    return errorResponse(res, "Internal server error", 500);
+  }
+};
+
+exports.uploadAvater = async (req, res) => {
+  try {
+    const { _id } = req.params;
+
+    // Find the user by ID
+    const user = await User.findById(_id);
+    if (!user) {
+      return errorResponse(res, "User not found", 404);
+    }
+
+    // Remove old avater if it exists
+    if (user.avater) {
+      const oldPath = path.join(__dirname, "../uploads/avater", user.avater);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath); // Delete old avater
+      }
+    }
+
+    // Set new avater and save user
+    user.avater = req.file.filename;
+    await user.save();
+
+    return successResponse(res, { user }, "Avater uploaded successfully", 200);
+  } catch (error) {
+    console.error("Error uploading avater:", error.message);
+    return errorResponse(res, "Internal server error", 500);
+  }
 };
 
 //update user
@@ -53,37 +88,42 @@ exports.updateUser = async (req, res) => {
       { new: true }
     );
 
-    const locationItem = await District.findOne({ _id: updatedUser.location });
+    if (!updatedUser) {
+      return errorResponse(res, "User not found", 404);
+    }
+
+    const locationItem = await District.findById(updatedUser.location);
     const token = jwt.sign(
-      {
-        name: updatedUser.name,
-        email: updatedUser.email,
-        location: updatedUser.location,
-      },
+      { _id: updatedUser._id, username: updatedUser.username },
       jwt_secret,
       { expiresIn: "1h" }
     );
-    console.log(updatedUser);
 
     return successResponse(
       res,
       { user: updatedUser, token, locationItem },
-      "success",
+      "User updated successfully",
       200
     );
-  } catch (err) {
-    return errorResponse(res, err.message, 500);
+  } catch (error) {
+    console.error("Error updating user:", error.message);
+    return errorResponse(res, "Internal server error", 500);
   }
 };
 
 //delete user
-exports.deleteUser = (req, res) => {
-  const { id } = req.params;
-  const index = users.findIndex((user) => user.id === id);
-  if (index === -1) {
-    return res.status(404).json({ message: "User not found." });
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedUser = await User.findByIdAndDelete(id);
+    if (!deletedUser) {
+      return errorResponse(res, "User not found", 404);
+    }
+
+    return successResponse(res, deletedUser, "User deleted successfully", 200);
+  } catch (error) {
+    console.error("Error deleting user:", error.message);
+    return errorResponse(res, "Internal server error", 500);
   }
-  const deletedUser = users.splice(index, 1)[0];
-  res.json(deletedUser);
-  console.log("User deleted:", deletedUser);
 };

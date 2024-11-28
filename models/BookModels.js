@@ -5,7 +5,7 @@ const bookSchema = mongoose.Schema(
     title: {
       type: String,
       required: true,
-      minlength: 5,
+      minlength: 3,
       maxlength: 50,
     },
     slug: {
@@ -14,9 +14,18 @@ const bookSchema = mongoose.Schema(
       unique: true,
       trim: true,
     },
-    // todo: type will be number and change controller for create and update this filed data type to convert string to number
     total_page: {
-      type: String,
+      type: Number,
+      required: true,
+    },
+    location: {
+      type: mongoose.Types.ObjectId,
+      ref: "District",
+      required: true,
+    },
+    user: {
+      type: mongoose.Types.ObjectId,
+      ref: "User",
       required: true,
     },
     cover_photo: {

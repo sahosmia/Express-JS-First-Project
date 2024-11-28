@@ -6,15 +6,14 @@ const {
   update,
   destroy,
 } = require("../../controllers/BookController");
-const bookCreateJoiSchema = require("../../validationsShcema/book/bookCreateValidationSchema");
-const joiValidation = require("../../middlewares/joiValidation");
-const bookUpdateJoiSchema = require("../../validationsShcema/book/bookUpdateValidationSchema");
+const checkAuth = require("../../middlewares/checkAuth");
+const bookUpload = require("../../middlewares/bookMulter");
 const router = express.Router();
 
 router.get("/", index);
-router.post("/", joiValidation(bookCreateJoiSchema), store);
+router.post("/", checkAuth, bookUpload.single("cover_photo"), store);
 router.get("/:slug", show);
-router.put("/:_id", joiValidation(bookUpdateJoiSchema), update);
+router.put("/:_id", checkAuth, bookUpload.single("cover_photo"), update);
 router.delete("/:slug", destroy);
 
 module.exports = router;
