@@ -11,6 +11,8 @@ const categoryRouter = require("./routes/api/category.routes");
 const bookRouter = require("./routes/api/book.routes");
 const authRouter = require("./routes/api/auth.routes");
 const userRouter = require("./routes/user.routes");
+const conversationRouter = require("./routes/api/conversation.routes");
+const messageRouter = require("./routes/api/message.routes");
 
 // Controllers
 const {
@@ -25,7 +27,12 @@ const {
 
 // Initialize Express app
 const app = express();
-
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    // ...
+  })
+);
 // Middleware
 app.use(helmet()); // Adds security headers
 app.use(express.json()); // Parses JSON body
@@ -39,6 +46,8 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use("/api/categories", categoryRouter);
 app.use("/api/books", bookRouter);
 app.use("/api/users", userRouter);
+app.use("/api/message", messageRouter);
+app.use("/api/conversations", conversationRouter);
 app.use("/api", authRouter);
 app.get("/api/districts", getAllDistrict);
 app.get("/api/districts/:_id", getSingleDistrict);

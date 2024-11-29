@@ -77,7 +77,7 @@ exports.index = async (req, res) => {
       .populate({
         path: "user",
         model: User,
-        select: "name username email",
+        select: "name username email avater",
       })
       .populate({
         path: "location",
