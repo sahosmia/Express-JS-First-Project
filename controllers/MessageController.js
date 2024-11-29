@@ -1,3 +1,4 @@
+const Conversation = require("../models/Conversation");
 const Message = require("../models/Message");
 
 exports.sendMessage = async (req, res) => {
@@ -18,6 +19,12 @@ exports.sendMessage = async (req, res) => {
       sender,
       conversation_id,
     });
+
+    await Conversation.findByIdAndUpdate(
+      conversation_id,
+      { last_updated: Date.now() }, // Update the timestamp
+      { new: true } // Return the updated document
+    );
 
     const savedConversation = await newMessage.save();
     return res.status(200).json({

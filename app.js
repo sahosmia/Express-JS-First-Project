@@ -39,6 +39,9 @@ app.use(express.json()); // Parses JSON body
 app.use(express.urlencoded({ extended: true })); // Parses URL-encoded data
 app.use(cors()); // Enables Cross-Origin Resource Sharing
 
+// socket creation
+// const io = require("socket.io")(server);
+// global.io = io;
 // Static files
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
